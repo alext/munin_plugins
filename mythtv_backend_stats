@@ -19,6 +19,8 @@ if (ARGV[0] == 'config')
   puts "graph_category MythTV"
   puts "graph_scale no"
   puts "guide_days.label Days"
+  puts "guide_days.warning 4:"
+  puts "guide_days.critical 2:"
 
   exit 0
 end

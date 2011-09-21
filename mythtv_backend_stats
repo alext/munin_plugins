@@ -1,0 +1,60 @@
+#!/usr/bin/env ruby
+
+host = ENV['host'] || 'localhost'
+
+if (ARGV[0] == 'config')
+  puts "multigraph recordings_jobs"
+  puts "graph_title Encoders and Jobs "
+  puts "graph_args --base 1000 -l 0"
+  puts "graph_vlabel count"
+  puts "graph_category MythTV"
+  puts "graph_scale no"
+  puts "encoders.label Active Encoders"
+  puts "jobs.label Job Queue"
+
+  puts "multigraph guide_days"
+  puts "graph_title Guide Days"
+  puts "graph_args --base 1000 -l 0"
+  puts "graph_vlabel days"
+  puts "graph_category MythTV"
+  puts "graph_scale no"
+  puts "guide_days.label Days"
+
+  exit 0
+end
+
+require 'net/http'
+require 'rexml/document'
+
+class MythTVStats
+  def initialize(host)
+    response = Net::HTTP.get_response(host, '/xml', '6544')
+    abort "# Error: #{response.code} received fetching stats" unless response.is_a?(Net::HTTPSuccess)
+    @doc = REXML::Document.new(response.body)
+  end
+
+  def active_encoders
+    @doc.root.elements.to_a("Encoders/Encoder[@state != '0']").size
+  end
+
+  def jobs
+    @doc.root.elements['JobQueue'].attributes['count'] or raise
+  rescue
+    'U'
+  end
+
+  def guide_days
+    @doc.root.elements['MachineInfo/Guide'].attributes['guideDays'] or raise
+  rescue
+    'U'
+  end
+end
+
+stats = MythTVStats.new(host)
+
+puts "multigraph recordings_jobs"
+puts "encoders.value #{stats.active_encoders}"
+puts "jobs.value #{stats.jobs}"
+
+puts "multigraph guide_days"
+puts "guide_days.value #{stats.guide_days}"

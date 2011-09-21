@@ -1,3 +1,13 @@
+MythTV
+------
+
+`mythtv_backend_stats`
+
+multigraph plugin to generate graphs from the mythtv backend status page.  Generates 2 graphs: the number of active recordings and jobs, and the number of days of guide data.
+
+
+TP-Link Router
+--------------
 
 These are 2 munin plugins to monitor a TP-Link ADSL router.  They have been developed againse a TD-8840, but they may well work with other versions.
 

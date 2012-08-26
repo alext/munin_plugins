@@ -30,7 +30,7 @@ require 'rexml/document'
 
 class MythTVStats
   def initialize(host)
-    response = Net::HTTP.get_response(host, '/xml', '6544')
+    response = Net::HTTP.get_response(host, '/Status/GetStatus', '6544')
     abort "# Error: #{response.code} received fetching stats" unless response.is_a?(Net::HTTPSuccess)
     @doc = REXML::Document.new(response.body)
   end

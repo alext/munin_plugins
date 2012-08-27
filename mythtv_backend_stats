@@ -40,7 +40,9 @@ class MythTVStats
   end
 
   def jobs
-    @doc.root.elements['JobQueue'].attributes['count'] or raise
+    @doc.root.elements.to_a('JobQueue/Job').select do |job|
+      job.attributes['status'].to_i & 0x100 == 0
+    end.size
   rescue
     'U'
   end

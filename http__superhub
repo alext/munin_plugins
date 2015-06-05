@@ -1,0 +1,67 @@
+#!/usr/bin/env ruby
+
+if $0 =~ /^(?:|.*\/)http_([^_]+)_/
+  host = $1
+end
+abort "# Error: couldn't understand what I'm supposed to monitor." unless host
+
+password = ENV['password'] || 'user'
+
+if (ARGV[0] == 'config')
+  puts "host_name #{host}" unless host == 'localhost'
+
+  # puts config details
+
+  exit 0
+end
+
+require 'net/http'
+
+class SuperhubStats
+
+  def initialize(host, password)
+    @host = host
+    @password = password
+  end
+
+  def stats_page
+    @page = get_stats_page
+    unless @page =~ /Network Status/
+      login
+    end
+    @page
+  end
+
+  private
+
+  def login
+    uri = URI.parse("http://#{@host}#{login_path}")
+    resp = Net::HTTP.post_form(uri, "VmLoginPassword" => @password)
+    unless resp['Location'] =~ %r{/home.asp}
+      raise "Login failed"
+    end
+    @page = get_stats_page
+    unless @page =~ /Network Status/
+      raise "Login process failed"
+    end
+  end
+
+  def login_path
+    if @page =~ %r{<form\s+id="signIn"\s+action=(\S+)}
+      return $1
+    else
+      puts @page
+      raise "Couldn't find login form"
+    end
+  end
+
+  def get_stats_page
+    Net::HTTP.get(@host, '/VmRgNetworkStatus.asp')
+  end
+end
+
+stats = SuperhubStats.new(host, password)
+
+puts stats.stats_page
+
+# puts graph data

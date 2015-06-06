@@ -16,6 +16,7 @@ if (ARGV[0] == 'config')
 end
 
 require 'net/http'
+require 'rexml/document'
 
 class SuperhubStats
 
@@ -24,15 +25,42 @@ class SuperhubStats
     @password = password
   end
 
+  def acquisition_status
+    table = get_table('Modem Initialisation')
+    get_row_value(table, 'Downstream Acquisition')
+  end
+
+  def downstream_channel_status
+    table = get_table('Downstream Channels')
+    table.get_elements(".//tbody//td[1]").map(&:text)
+  end
+
+  def post_rs_errors
+    table = get_table('Downstream Channels')
+    table.get_elements(".//tbody//td[8]").map(&:text).map(&:to_i)
+  end
+
   def stats_page
+    @stats_page ||= REXML::Document.new(load_stats_page)
+  end
+
+  private
+
+  def get_table(caption)
+    stats_page.get_elements("//table[.//caption[contains(., '#{caption}')]]").first
+  end
+
+  def get_row_value(table, row_title)
+    table.get_elements(".//tr[.//td[@class='title'][contains(., '#{row_title}')]]//td[2]").first.text
+  end
+
+  def load_stats_page
     @page = get_stats_page
     unless @page =~ /Network Status/
       login
     end
     @page
   end
-
-  private
 
   def login
     uri = URI.parse("http://#{@host}#{login_path}")
@@ -62,6 +90,8 @@ end
 
 stats = SuperhubStats.new(host, password)
 
-puts stats.stats_page
+puts "Status: #{stats.acquisition_status}"
+puts stats.downstream_channel_status.inspect
+puts stats.post_rs_errors.inspect
 
 # puts graph data

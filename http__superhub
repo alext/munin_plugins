@@ -74,9 +74,12 @@ class SuperhubStats
     end
   end
 
-  def login_path
+  def login_path(do_retry = true)
     if @page =~ %r{<form\s+id="signIn"\s+action=(\S+)}
       return $1
+    elsif do_retry
+      @page = Net::HTTP.get(@host, '/VmLogin.asp')
+      login_path(false)
     else
       puts @page
       raise "Couldn't find login form"

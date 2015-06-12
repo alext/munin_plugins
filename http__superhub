@@ -158,6 +158,18 @@ downstream.draw LINE1
 upstream.label Upstream
 upstream.draw LINE1
   EOT
+
+  puts <<-EOT
+multigraph downstream_snr
+graph_title Downstream SNR
+graph_category network
+graph_vlabel dB
+  EOT
+  8.times do |i|
+    i += 1
+    puts "ch#{i}.label Channel #{i}"
+    puts "ch#{i}.draw LINE1"
+  end
   # puts config details
   #
   # Graph: Counters
@@ -167,6 +179,10 @@ upstream.draw LINE1
   # Graph: upstream power levels
 
   exit 0
+end
+
+def strip_units(value)
+  value.gsub(/[^0-9.-]/, '')
 end
 
 stats = SuperhubStats.new(host, password)
@@ -189,6 +205,15 @@ puts "multigraph locked_channels"
 puts "downstream.value #{downstream_details.select {|ch| ch[:lock_status] == "Locked"}.size}"
 puts "upstream.value #{upstream_details.select {|ch| ch[:lock_status] == "Locked"}.size}"
 
+puts "multigraph downstream_snr"
+downstream_details.each_with_index do |ch, i|
+  i += 1
+  if ch[:lock_status] == "Locked"
+    puts "ch#{i}.value #{strip_units(ch[:snr])}"
+  else
+    puts "ch#{i}.value U"
+  end
+end
 #puts "Status: #{stats.acquisition_status}"
 #puts stats.downstream_channel_status.inspect
 #puts stats.post_rs_errors.inspect

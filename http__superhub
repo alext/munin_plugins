@@ -187,13 +187,6 @@ graph_vlabel dBmV
     puts "tx#{i}.label TX Ch #{i}"
     puts "tx#{i}.draw LINE1"
   end
-  # puts config details
-  #
-  # Graph: Counters
-  # Graph: Connected channels (up and down)
-  # Graph: Downstream Post RS errors
-  # Graph: Downstream power levels
-  # Graph: upstream power levels
 
   exit 0
 end
@@ -249,8 +242,3 @@ upstream_details.each_with_index do |ch, i|
     puts "tx#{i}.value U"
   end
 end
-#puts "Status: #{stats.acquisition_status}"
-#puts stats.downstream_channel_status.inspect
-#puts stats.post_rs_errors.inspect
-
-# puts graph data

@@ -170,6 +170,23 @@ graph_vlabel dB
     puts "ch#{i}.label Channel #{i}"
     puts "ch#{i}.draw LINE1"
   end
+
+  puts <<-EOT
+multigraph power_levels
+graph_title Power Levels
+graph_category network
+graph_vlabel dBmV
+  EOT
+  8.times do |i|
+    i += 1
+    puts "rx#{i}.label RX Ch #{i}"
+    puts "rx#{i}.draw LINE1"
+  end
+  4.times do |i|
+    i += 1
+    puts "tx#{i}.label TX Ch #{i}"
+    puts "tx#{i}.draw LINE1"
+  end
   # puts config details
   #
   # Graph: Counters
@@ -212,6 +229,24 @@ downstream_details.each_with_index do |ch, i|
     puts "ch#{i}.value #{strip_units(ch[:snr])}"
   else
     puts "ch#{i}.value U"
+  end
+end
+
+puts "multigraph power_levels"
+downstream_details.each_with_index do |ch, i|
+  i += 1
+  if ch[:lock_status] == "Locked"
+    puts "rx#{i}.value #{strip_units(ch[:rx_power])}"
+  else
+    puts "rx#{i}.value U"
+  end
+end
+upstream_details.each_with_index do |ch, i|
+  i += 1
+  if ch[:lock_status] == "Locked"
+    puts "tx#{i}.value #{strip_units(ch[:tx_power])}"
+  else
+    puts "tx#{i}.value U"
   end
 end
 #puts "Status: #{stats.acquisition_status}"

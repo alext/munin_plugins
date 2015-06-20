@@ -5,6 +5,16 @@ MythTV
 
 multigraph plugin to generate graphs from the mythtv backend status page.  Generates 2 graphs: the number of active recordings and jobs, and the number of days of guide data.
 
+Virgin Superhub
+---------------
+
+`http__superhub`
+
+This parses the Network Status page (`/VmRgNetworkStatus.asp`) in the Superhub web interface, and graphs counters, number of locked channels, downstream SNR, and  power levels (both upstream and downstream). It reads the env variable `password` for the admin password to use when connecting to the web interface.
+
+This follows the convention of snmp plugins where the symlink is expected to include the host to monitor between the double underscore.
+
+This has been built and tested for a Superhub version 1.  It may work with the Superhub 2 if the web interface is the same as the Superhub.
 
 TP-Link Router
 --------------

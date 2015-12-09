@@ -5,148 +5,80 @@ if $0 =~ /^(?:|.*\/)http_([^_]+)_/
 end
 abort "# Error: couldn't understand what I'm supposed to monitor." unless host
 
-password = ENV['password'] || 'user'
-
 require 'net/http'
-require 'rexml/document'
+require 'nokogiri'
 
 class SuperhubStats
 
-  def initialize(host, password)
+  def initialize(host)
     @host = host
-    @password = password
-  end
-
-  def acquisition_status
-    table = get_table('Modem Initialisation')
-    get_row_value(table, 'Downstream Acquisition')
-  end
-
-  def counters
-    table = get_table('Modem Initialisation')
-    get_row_value(table, 'Counters').split(',').map(&:strip).map(&:to_i)
   end
 
   def downstream_channel_details
-    table = get_table('Downstream Channels')
-    table.get_elements(".//tbody//tr").map do |row|
+    cells = get_table_data(downstream_stats_page, 'Downstream')
+    rows = cells.each_with_object({}) do |row, result|
+      result[row[0]] = row[1..-1]
+    end
+    8.times.map do |n|
       {
-        :lock_status => row.get_elements(".//td[1]").first.text,
-        :rx_power => row.get_elements(".//td[5]").first.text,
-        :snr => row.get_elements(".//td[6]").first.text,
-        :post_rs_errors => row.get_elements(".//td[8]").first.text.to_i,
+        :lock_status => rows["Lock Status(QAM Lock/FEC Sync/MPEG Lock)"][n],
+        :rx_power => rows["Power Level (dBmV)"][n],
+        :snr => rows["RxMER (dB)"][n],
       }
     end
   end
 
   def upstream_channel_details
-    table = get_table('Upstream Channels')
-    table.get_elements(".//tbody//tr").map do |row|
+    cells = get_table_data(upstream_stats_page, 'Upstream')
+    rows = cells.each_with_object({}) do |row, result|
+      result[row[0]] = row[1..-1]
+    end
+    4.times.map do |n|
       {
-        :lock_status => row.get_elements(".//td[1]").first.text,
-        :tx_power => row.get_elements(".//td[5]").first.text,
+        :lock_status => rows["Ranging Status"][n],
+        :tx_power => rows["Power Level (dBmV)"][n],
       }
     end
   end
 
-  def downstream_channel_status
-    table = get_table('Downstream Channels')
-    table.get_elements(".//tbody//td[1]").map(&:text)
-  end
-
-  def post_rs_errors
-    table = get_table('Downstream Channels')
-    table.get_elements(".//tbody//td[8]").map(&:text).map(&:to_i)
-  end
-
-  def stats_page
-    @stats_page ||= REXML::Document.new(load_stats_page)
-  end
-
   private
 
-  def get_table(caption)
-    stats_page.get_elements("//table[.//caption[contains(., '#{caption}')]]").first
+  def downstream_stats_page
+    @downstream_stats_page ||= Nokogiri::HTML(get_downstream_stats_page)
   end
 
-  def get_row_value(table, row_title)
-    table.get_elements(".//tr[.//td[@class='title'][contains(., '#{row_title}')]]//td[2]").first.text
+  def upstream_stats_page
+    @upstream_stats_page ||= Nokogiri::HTML(get_upstream_stats_page)
   end
 
-  def load_stats_page
-    @page = get_stats_page
-    unless @page =~ /Network Status/
-      login
-    end
-    @page
+  def get_table(doc, caption)
+    doc.at_xpath("//table[.//caption[contains(., '#{caption}')]]")
   end
 
-  def login
-    uri = URI.parse("http://#{@host}#{login_path}")
-    resp = Net::HTTP.post_form(uri, "VmLoginPassword" => @password)
-    unless resp['Location'] =~ %r{/home.asp}
-      raise "Login failed"
-    end
-    @page = get_stats_page
-    unless @page =~ /Network Status/
-      raise "Login process failed"
+  def get_table_data(doc, caption)
+    table = get_table(doc, caption)
+    table.css('tr').map do |row|
+      row.css('th, td').map do |cell|
+        cell.text
+      end
     end
   end
 
-  def login_path(do_retry = true)
-    if @page =~ %r{<form\s+id="signIn"\s+action=(\S+)}
-      return $1
-    elsif do_retry
-      @page = Net::HTTP.get(@host, '/VmLogin.asp')
-      login_path(false)
-    else
-      puts @page
-      raise "Couldn't find login form"
-    end
+  def get_downstream_stats_page
+    get_page('/VmRouterStatus_downstream.asp')
   end
 
-  def get_stats_page
-    Net::HTTP.get(@host, '/VmRgNetworkStatus.asp')
+  def get_upstream_stats_page
+    get_page('/VmRouterStatus_upstream.asp')
+  end
+
+  def get_page(path)
+    Net::HTTP.get(@host, path)
   end
 end
 
 if (ARGV[0] == 'config')
   puts "host_name #{host}" unless host == 'localhost'
-
-  puts <<-EOT
-multigraph counters
-graph_title Counters
-graph_category network
-graph_args -l 0
-t1.label T1
-t1.type DERIVE
-t1.min 0
-t1.draw LINE1
-t2.label T2
-t2.type DERIVE
-t2.min 0
-t2.draw LINE1
-t3.label T3
-t3.type DERIVE
-t3.min 0
-t3.draw LINE1
-t4.label T4
-t4.type DERIVE
-t4.min 0
-t4.draw LINE1
-sync.label Sync
-sync.type DERIVE
-sync.min 0
-sync.draw LINE1
-resets.label Resets
-resets.type DERIVE
-resets.min 0
-resets.draw LINE1
-post_rs_errors.label Post RS Errors
-post_rs_errors.type DERIVE
-post_rs_errors.min 0
-post_rs_errors.draw LINE1
-  EOT
 
   puts <<-EOT
 multigraph locked_channels
@@ -195,25 +127,14 @@ def strip_units(value)
   value.gsub(/[^0-9.-]/, '')
 end
 
-stats = SuperhubStats.new(host, password)
-
-puts "multigraph counters"
-counters = stats.counters
-puts "t1.value #{counters[0]}"
-puts "t2.value #{counters[1]}"
-puts "t3.value #{counters[2]}"
-puts "t4.value #{counters[3]}"
-puts "sync.value #{counters[4]}"
-puts "resets.value #{counters[5]}"
+stats = SuperhubStats.new(host)
 
 downstream_details = stats.downstream_channel_details
 upstream_details = stats.upstream_channel_details
-post_rs_errors = downstream_details.inject(0) {|total, ch| total += ch[:post_rs_errors] }
-puts "post_rs_errors.value #{post_rs_errors}"
 
 puts "multigraph locked_channels"
 puts "downstream.value #{downstream_details.select {|ch| ch[:lock_status] == "Locked"}.size}"
-puts "upstream.value #{upstream_details.select {|ch| ch[:lock_status] == "Locked"}.size}"
+puts "upstream.value #{upstream_details.select {|ch| ch[:lock_status] == "Success"}.size}"
 
 puts "multigraph downstream_snr"
 downstream_details.each_with_index do |ch, i|
@@ -236,7 +157,7 @@ downstream_details.each_with_index do |ch, i|
 end
 upstream_details.each_with_index do |ch, i|
   i += 1
-  if ch[:lock_status] == "Locked"
+  if ch[:lock_status] == "Success"
     puts "tx#{i}.value #{strip_units(ch[:tx_power])}"
   else
     puts "tx#{i}.value U"

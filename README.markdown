@@ -10,7 +10,10 @@ Virgin Superhub
 
 `http__superhub`
 
-This parses the Network Status page (`/VmRgNetworkStatus.asp`) in the Superhub web interface, and graphs counters, number of locked channels, downstream SNR, and  power levels (both upstream and downstream). It reads the env variable `password` for the admin password to use when connecting to the web interface.
+This parses the Upstream and Downstream Status pages
+(`/VmRouterStatus_upstream.asp` and `VmRouterStatus_downstream.asp`) in the
+Superhub web interface, and graphs number of locked channels, downstream SNR,
+and power levels (both upstream and downstream).
 
 This follows the convention of snmp plugins where the symlink is expected to include the host to monitor between the double underscore.
 

@@ -96,8 +96,36 @@ class DeviceStats
   end
 end
 
+if (ARGV[0] == 'config')
+  puts "host_name #{host}" unless host == 'localhost'
+
+  puts "multigraph wireless_channel"
+  puts "graph_title Wireless Channel"
+  puts "graph_args --base 1000 -l 0"
+  puts "graph_vlabel channel"
+  puts "graph_category network"
+  puts "channel.label Channel"
+  puts "channel.type GAUGE"
+  puts "channel.min 0"
+  puts "channel.draw LINE1"
+
+  puts "multigraph connected_clients"
+  puts "graph_title Connected Clients"
+  puts "graph_args --base 1000 -l 0"
+  puts "graph_vlabel clients"
+  puts "graph_category network"
+  puts "clients.label Clients"
+  puts "clients.type GAUGE"
+  puts "clients.min 0"
+  puts "clients.draw LINE1"
+
+  exit 0
+end
+
 stats = DeviceStats.new(host, user, password)
 
-puts "Channel: #{stats.wireless_channel}"
-puts "Clients: #{stats.connected_clients}"
-exit 0
+puts "multigraph wireless_channel"
+puts "channel.value #{stats.wireless_channel.nil? ? 'U' : stats.wireless_channel}"
+
+puts "multigraph connected_clients"
+puts "clients.value #{stats.connected_clients.nil? ? 'U' : stats.connected_clients}"

@@ -57,6 +57,12 @@ class DeviceStats
     @wireless_stats_page ||= get_wireless_stats_page.body
   end
 
+  def logout
+    return if @url_token.nil?
+    get_page(path_with_token('/userRpm/LogoutRpm.htm'))
+    @url_token = nil
+  end
+
   def get_status_page
     get_page(path_with_token('/userRpm/StatusRpm.htm'))
   end
@@ -74,6 +80,7 @@ class DeviceStats
     get_page('/', false)
     resp = get_page('/userRpm/LoginRpm.htm?Save=Save', false)
     if resp.body =~ %r{http://#{Regexp.escape(@host)}/([A-Za-z0-9]+)/}
+      at_exit { logout }
       return $1
     else
       return nil

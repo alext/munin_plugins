@@ -71,6 +71,7 @@ class DeviceStats
   end
 
   def get_url_token
+    get_page('/', false)
     resp = get_page('/userRpm/LoginRpm.htm?Save=Save', false)
     if resp.body =~ %r{http://#{Regexp.escape(@host)}/([A-Za-z0-9]+)/}
       return $1

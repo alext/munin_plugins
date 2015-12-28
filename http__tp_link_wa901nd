@@ -8,6 +8,7 @@ abort "# Error: couldn't understand what I'm supposed to monitor." unless host
 user = ENV['user'] || 'admin'
 password = ENV['password'] || 'admin'
 
+require 'resolv'
 require 'digest/md5'
 require 'base64'
 require 'cgi'
@@ -16,7 +17,7 @@ require 'net/http'
 
 class DeviceStats
   def initialize(host, user, password)
-    @host = host
+    @host = Resolv.getaddress(host)
     @auth_cookie = build_auth_cookie(user, password)
   end
 

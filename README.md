@@ -24,6 +24,9 @@ This has been built and tested for a Superhub version 1.  It may work with the S
 This parses the router's web interface to graph the chosen wireless channel and
 the number of connected clients.
 
+It also includes an uptime graph because the uptime values reported by the snmp
+interface seem to be way off.
+
 This follows the convention of snmp plugins where the symlink is expected to
 include the host to monitor between the double underscore.
 

@@ -39,6 +39,13 @@ class DeviceStats
     data[0].to_i
   end
 
+  def uptime
+    data = extract_js_array(status_page, 'statusPara')
+    return nil if data.nil?
+
+    data[4].to_f / 86400.0
+  end
+
   private
 
   def extract_js_array(page, name)
@@ -128,6 +135,15 @@ if (ARGV[0] == 'config')
   puts "clients.min 0"
   puts "clients.draw LINE1"
 
+  puts "multigraph uptime"
+  puts "graph_title System Uptime"
+  puts "graph_args --base 1000 -l 0"
+  puts "graph_vlabel uptime in days"
+  puts "graph_category system"
+  puts "uptime.label uptime"
+  puts "uptime.type GAUGE"
+  puts "uptime.draw AREA"
+
   exit 0
 end
 
@@ -138,3 +154,6 @@ puts "channel.value #{stats.wireless_channel.nil? ? 'U' : stats.wireless_channel
 
 puts "multigraph connected_clients"
 puts "clients.value #{stats.connected_clients.nil? ? 'U' : stats.connected_clients}"
+
+puts "multigraph uptime"
+puts "uptime.value #{stats.uptime || 'U'}"

@@ -1,12 +1,10 @@
-MythTV
-------
+# MythTV
 
 `mythtv_backend_stats`
 
 multigraph plugin to generate graphs from the mythtv backend status page.  Generates 2 graphs: the number of active recordings and jobs, and the number of days of guide data.
 
-Virgin Superhub
----------------
+## Virgin Superhub
 
 `http__superhub`
 
@@ -19,8 +17,20 @@ This follows the convention of snmp plugins where the symlink is expected to inc
 
 This has been built and tested for a Superhub version 1.  It may work with the Superhub 2 if the web interface is the same as the Superhub.
 
-TP-Link TD-8840 Router
-----------------------
+## TP-Link TL-WA901ND Access Point
+
+`http__tp_link_wa901nd`
+
+This parses the router's web interface to graph the chosen wireless channel and
+the number of connected clients.
+
+It also includes an uptime graph because the uptime values reported by the snmp
+interface seem to be way off.
+
+This follows the convention of snmp plugins where the symlink is expected to
+include the host to monitor between the double underscore.
+
+## TP-Link TD-8840 Router
 
 These are 2 munin plugins to monitor a TP-Link ADSL router.  They have been developed againse a TD-8840, but they may well work with other versions.
 

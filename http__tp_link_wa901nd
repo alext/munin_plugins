@@ -1,0 +1,159 @@
+#!/usr/bin/env ruby
+
+if $0 =~ /^(?:|.*\/)http_([^_]+)_/
+  host = $1
+end
+abort "# Error: couldn't understand what I'm supposed to monitor." unless host
+
+user = ENV['user'] || 'admin'
+password = ENV['password'] || 'admin'
+
+require 'resolv'
+require 'digest/md5'
+require 'base64'
+require 'cgi'
+require 'csv'
+require 'net/http'
+
+class DeviceStats
+  def initialize(host, user, password)
+    @host = Resolv.getaddress(host)
+    @auth_cookie = build_auth_cookie(user, password)
+  end
+
+  def wireless_channel
+    stats = extract_js_array(status_page, 'wlanPara')
+    return nil if stats.nil?
+
+    if stats[2] == "15"
+      stats[9].to_i
+    else
+      stats[2].to_i
+    end
+  end
+
+  def connected_clients
+    data = extract_js_array(wireless_stats_page, 'wlanHostPara')
+    return nil if data.nil?
+
+    data[0].to_i
+  end
+
+  def uptime
+    data = extract_js_array(status_page, 'statusPara')
+    return nil if data.nil?
+
+    data[4].to_f / 86400.0
+  end
+
+  private
+
+  def extract_js_array(page, name)
+    if page =~ %r{#{Regexp.escape(name)}\s+=\s+new\s+Array\((.+?)\)}m
+      CSV.parse_line($1.gsub(/\n/, ''))
+    else
+      nil
+    end
+  end
+
+  def status_page
+    @status_page ||= get_status_page.body
+  end
+
+  def wireless_stats_page
+    @wireless_stats_page ||= get_wireless_stats_page.body
+  end
+
+  def logout
+    return if @url_token.nil?
+    get_page(path_with_token('/userRpm/LogoutRpm.htm'))
+    @url_token = nil
+  end
+
+  def get_status_page
+    get_page(path_with_token('/userRpm/StatusRpm.htm'))
+  end
+
+  def get_wireless_stats_page
+    get_page(path_with_token('/userRpm/WlanStationRpm.htm'))
+  end
+
+  def path_with_token(path)
+    @url_token ||= get_url_token
+    "/#{@url_token}#{path}"
+  end
+
+  def get_url_token
+    get_page('/', false)
+    resp = get_page('/userRpm/LoginRpm.htm?Save=Save', false)
+    if resp.body =~ %r{http://#{Regexp.escape(@host)}/([A-Za-z0-9]+)/}
+      at_exit { logout }
+      return $1
+    else
+      return nil
+    end
+  end
+
+  def get_page(path, include_referrer = true)
+    Net::HTTP.start(@host, 80) do |http|
+      req = Net::HTTP::Get.new(path)
+      req['Cookie'] = @auth_cookie
+      if include_referrer
+        req['Referer'] = "http://#{@host}#{path_with_token('/userRpm/Index.htm')}"
+      end
+      http.request(req)
+    end
+  end
+
+  def build_auth_cookie(user, password)
+    hashed_password = Digest::MD5.hexdigest(password)
+    value = Base64.encode64("#{user}:#{hashed_password}").strip
+    'Authorization=Basic%20' + CGI.escape(value)
+  end
+end
+
+if (ARGV[0] == 'config')
+  puts "host_name #{host}" unless host == 'localhost'
+
+  puts "multigraph wireless_channel"
+  puts "graph_title Wireless Channel"
+  puts "graph_args --base 1000 -l 0"
+  puts "graph_vlabel channel"
+  puts "graph_category network"
+  puts "channel.label Channel"
+  puts "channel.type GAUGE"
+  puts "channel.min 0"
+  puts "channel.draw LINE1"
+
+  puts "multigraph connected_clients"
+  puts "graph_title Connected Clients"
+  puts "graph_args --base 1000 -l 0"
+  puts "graph_vlabel clients"
+  puts "graph_category network"
+  puts "clients.label Clients"
+  puts "clients.type GAUGE"
+  puts "clients.min 0"
+  puts "clients.draw LINE1"
+
+  puts "multigraph uptime"
+  puts "graph_title System Uptime"
+  puts "graph_args --base 1000 -l 0"
+  puts "graph_vlabel uptime in days"
+  puts "graph_category system"
+  puts "uptime.label uptime"
+  puts "uptime.type GAUGE"
+  puts "uptime.draw AREA"
+
+  exit 0
+end
+
+stats = DeviceStats.new(host, user, password)
+
+puts "multigraph wireless_channel"
+puts "channel.value #{stats.wireless_channel.nil? ? 'U' : stats.wireless_channel}"
+
+puts "multigraph connected_clients"
+puts "clients.value #{stats.connected_clients.nil? ? 'U' : stats.connected_clients}"
+
+puts "multigraph uptime"
+puts "uptime.value #{stats.uptime || 'U'}"

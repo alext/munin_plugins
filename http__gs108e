@@ -1,0 +1,101 @@
+#!/usr/bin/env ruby
+
+if $0 =~ /^(?:|.*\/)http_([^_]+)_/
+  host = $1
+end
+abort "# Error: couldn't understand what I'm supposed to monitor." unless host
+
+password = ENV['password'] || 'password'
+
+require 'net/http'
+
+class DeviceStats
+  def initialize(host, password)
+    @host = host
+    @password = password
+  end
+
+  def port_data
+    data = {}
+    port = 0
+    port_stats_page.each_line do |line|
+      if line =~ /firstCol.*>(\d+)</i
+        port = $1.to_i
+        data[port] = {}
+      elsif line =~ /rxpkt.*value='([0-9a-fA-F]+)'/i
+        data[port][:rxpkt] = $1.to_i(16)
+      elsif line =~ /txpkt.*value='([0-9a-fA-F]+)'/i
+        data[port][:txpkt] = $1.to_i(16)
+      elsif line =~ /crcpkt.*value='([0-9a-fA-F]+)'/i
+        data[port][:crcpkt] = $1.to_i(16)
+      end
+    end
+    if data == {}
+      raise "No port data found"
+    end
+    data
+  end
+
+  private
+
+  def port_stats_page
+    @port_stats_page ||= get_page('/port_statistics.htm').body
+  end
+
+  def get_page(path)
+    Net::HTTP.start(@host, 80) do |http|
+      req = Net::HTTP::Get.new(path)
+      req['Cookie'] = auth_cookie
+      http.request(req)
+    end
+  end
+
+  def auth_cookie
+    @auth_cookie ||= get_auth_cookie
+  end
+
+  def get_auth_cookie
+    uri = URI("http://#{@host}/login.cgi")
+    resp = Net::HTTP.post_form(uri, 'password' => @password)
+    unless resp.is_a?(Net::HTTPOK)
+      raise "Got #{resp.code} response, body: #{res.body}"
+    end
+    resp['set-cookie'].split('; ').first
+  end
+end
+
+stats = DeviceStats.new(host, password)
+
+if (ARGV[0] == 'config')
+  puts "host_name #{host}" unless host == 'localhost'
+
+  puts "multigraph port_traffic"
+  puts "graph_title Port traffic"
+  puts "graph_args --base 1000"
+  puts "graph_vlabel bits in (-) / out (+) per second"
+  puts "graph_category network"
+
+  stats.port_data.each do |port, _|
+    dname = "port#{port}down"
+    puts "#{dname}.label Port #{port} rx"
+    puts "#{dname}.type DERIVE"
+    puts "#{dname}.graph no"
+    puts "#{dname}.cdef #{dname},8,*"
+    puts "#{dname}.min 0"
+
+    uname = "port#{port}up"
+    puts "#{uname}.label Port #{port}"
+    puts "#{uname}.type DERIVE"
+    puts "#{uname}.negative #{dname}"
+    puts "#{uname}.cdef #{uname},8,*"
+    puts "#{uname}.min 0"
+  end
+
+  exit 0
+end
+
+puts "multigraph port_traffic"
+stats.port_data.each do |port, data|
+  puts "port#{port}down.value #{data[:rxpkt]}"
+  puts "port#{port}up.value #{data[:txpkt]}"
+end

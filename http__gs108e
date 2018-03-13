@@ -15,6 +15,12 @@ class DeviceStats
     @password = password
   end
 
+  def close
+    if @auth_cookie
+      get_page('/logout.cgi')
+    end
+  end
+
   def port_data
     data = {}
     port = 0
@@ -60,11 +66,15 @@ class DeviceStats
     unless resp.is_a?(Net::HTTPOK)
       raise "Got #{resp.code} response, body: #{res.body}"
     end
+    unless resp['set-cookie']
+      raise "failed to get auth cookie"
+    end
     resp['set-cookie'].split('; ').first
   end
 end
 
 stats = DeviceStats.new(host, password)
+at_exit { stats.close }
 
 if (ARGV[0] == 'config')
   puts "host_name #{host}" unless host == 'localhost'
